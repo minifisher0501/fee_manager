@@ -1,0 +1,1197 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>家計簿 - 費用結算與帳務明細</title>
+
+  <!-- Mobile / installable (Add to Home Screen) -->
+  <meta name="theme-color" content="#fef8f1" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="家計簿" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Tailwind Play CDN (supports the arbitrary-value utility classes used by the original app) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Be Vietnam Pro', 'Noto Sans TC', 'sans-serif'],
+          },
+          boxShadow: {
+            'xs': '0 1px 2px 0 rgba(29,27,23,0.06)',
+            '2xs': '0 1px 1px 0 rgba(29,27,23,0.05)',
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    /* ---- Ported from the original src/index.css ---- */
+    body {
+      font-family: 'Be Vietnam Pro', 'Noto Sans TC', sans-serif;
+      background-color: #fef8f1;
+      color: #1d1b17;
+      min-height: 100vh;
+    }
+    .font-display { font-family: 'Plus Jakarta Sans', 'Noto Sans TC', sans-serif; }
+
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    .receipt-divider { border-top: 1px dashed rgba(255, 255, 255, 0.35); }
+    .receipt-divider-dark { border-top: 1px dashed rgba(115, 121, 113, 0.3); }
+
+    .grain-texture {
+      background-image: radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 0);
+      background-size: 8px 8px;
+    }
+
+    .squishy-btn:active {
+      transform: scale(0.95);
+      transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    /* v4-named utilities missing from the v3 Play CDN */
+    .backdrop-blur-xs { backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
+
+    /* ---- Minimal port of tailwindcss-animate (animate-in helpers) ---- */
+    @keyframes enter {
+      from {
+        opacity: var(--tw-enter-opacity, 1);
+        transform: translate3d(var(--tw-enter-translate-x, 0), var(--tw-enter-translate-y, 0), 0)
+                   scale(var(--tw-enter-scale, 1));
+      }
+    }
+    .animate-in {
+      animation-name: enter;
+      animation-duration: 0.2s;
+      animation-fill-mode: both;
+      --tw-enter-opacity: initial;
+      --tw-enter-scale: initial;
+      --tw-enter-translate-x: initial;
+      --tw-enter-translate-y: initial;
+    }
+    .duration-150 { animation-duration: 0.15s; }
+    .duration-200 { animation-duration: 0.2s; }
+    .fade-in { --tw-enter-opacity: 0; }
+    .zoom-in { --tw-enter-scale: 0.95; }
+    .slide-in-from-bottom { --tw-enter-translate-y: 100%; }
+    .slide-in-from-top { --tw-enter-translate-y: -0.75rem; }
+
+    /* lucide icons inherit sizing from Tailwind w-/h- utility classes */
+    [data-lucide], svg.lucide { stroke-width: 2; }
+  </style>
+</head>
+
+<body class="bg-[#fef8f1] text-[#1d1b17] antialiased">
+  <div id="root"></div>
+
+  <!-- Lucide icons (UMD) -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+  <script>
+  /* =========================================================================
+     家計簿 (Household Budget) — vanilla HTML/CSS/JS reproduction
+     Ported 1:1 from the original React + Vite + Tailwind app.
+     ========================================================================= */
+
+  const CAT_AVATAR = "data:image/jpeg;base64,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";
+
+  /* ---- Utility formatters (ported from src/utils/calculations.ts) ---- */
+  function formatCurrency(amount) {
+    return new Intl.NumberFormat('zh-TW', {
+      style: 'currency', currency: 'TWD', maximumFractionDigits: 0,
+    }).format(amount).replace('NT$', '$');
+  }
+  function formatNumber(amount) {
+    return new Intl.NumberFormat('zh-TW').format(amount);
+  }
+
+  function calculateSharedSummary(transactions, period, memberFilter, members) {
+    members = members || [];
+    let filtered = transactions.filter(t => t.type === 'expense' && (t.isShared || t.splitType === '共同'));
+    if (memberFilter !== 'all' && memberFilter !== '所有人') {
+      filtered = filtered.filter(t => t.payer === memberFilter);
+    }
+    let totalShared = 0;
+    const memberPaidMap = {};
+    members.forEach(m => { memberPaidMap[m.name] = 0; });
+    filtered.forEach(t => {
+      totalShared += t.amount;
+      memberPaidMap[t.payer] = (memberPaidMap[t.payer] || 0) + t.amount;
+    });
+    const dadPaid = memberPaidMap['爸爸'] || 0;
+    const momPaid = memberPaidMap['媽媽'] || 0;
+    const memberBreakdown = members.map(m => {
+      const paid = memberPaidMap[m.name] || 0;
+      const percent = totalShared > 0 ? Math.round((paid / totalShared) * 100) : 0;
+      return { name: m.name, paid, percent, color: m.color };
+    });
+    const totalDadMom = dadPaid + momPaid;
+    let dadPercent = totalDadMom > 0 ? Math.round((dadPaid / totalDadMom) * 100) : 50;
+    let momPercent = totalDadMom > 0 ? 100 - dadPercent : 50;
+    const fairShareEach = totalShared / 2;
+    const dadDiff = dadPaid - fairShareEach;
+    let settlementText = '', payerName = '爸爸', payerOwesName = '媽媽', suggestedAmount = 0;
+    if (dadDiff > 0) {
+      suggestedAmount = Math.round(dadDiff); payerOwesName = '媽媽'; payerName = '爸爸';
+      settlementText = '媽媽 應該支付給 爸爸';
+    } else if (dadDiff < 0) {
+      suggestedAmount = Math.round(Math.abs(dadDiff)); payerOwesName = '爸爸'; payerName = '媽媽';
+      settlementText = '爸爸 應該支付給 媽媽';
+    } else {
+      suggestedAmount = 0; settlementText = '帳目平衡，無須結算';
+    }
+    return { totalShared, dadPaid, momPaid, dadPercent, momPercent, memberBreakdown, settlementText, payerName, payerOwesName, suggestedAmount };
+  }
+
+  /* ---- Initial data (ported from src/data/initialData.ts) ---- */
+  const INITIAL_MEMBERS = [
+    { id: '1', name: '爸爸', color: '#4a654a' },
+    { id: '2', name: '媽媽', color: '#be9c47' },
+    { id: '3', name: '妹妹', color: '#715c00' },
+    { id: '4', name: '我', color: '#334d34' },
+  ];
+  const INITIAL_TRANSACTIONS = [
+    { id: 't1', title: '給阿偉的罐罐', amount: 450, type: 'expense', payer: '爸爸', category: '寵物', splitType: '共同', date: '2026-05-24', time: '下午 02:30', note: '阿偉最喜歡的鮪魚罐罐 6 入組', isShared: true },
+    { id: 't2', title: '全家便利商店', amount: 85, type: 'expense', payer: '媽媽', category: '飲食', splitType: '個人', date: '2026-05-24', time: '上午 08:15', note: '早餐黑咖啡與飯糰', isShared: false },
+    { id: 't3', title: '薪資轉入', amount: 42000, type: 'income', payer: '爸爸', category: '收入', splitType: '收入', date: '2026-05-23', time: '下午 05:00', note: '5 月薪資發放', isShared: false },
+    { id: 't4', title: '悠遊卡加值', amount: 500, type: 'expense', payer: '媽媽', category: '交通', splitType: '個人', date: '2026-05-23', time: '下午 01:20', note: '捷運通勤使用', isShared: false },
+    { id: 't5', title: '本月電費繳納', amount: 2480, type: 'expense', payer: '爸爸', category: '居家', splitType: '共同', date: '2026-05-23', time: '上午 11:45', note: '夏季電費共同分擔', isShared: true },
+    { id: 't6', title: '全聯福利中心', amount: 1240, type: 'expense', payer: '媽媽', category: '飲食', splitType: '共同', date: '2026-05-22', time: '下午 06:10', note: '週末食材與生鮮蔬菜', isShared: true },
+    { id: 't7', title: '家庭水電費', amount: 3850, type: 'expense', payer: '爸爸', category: '居家', splitType: '共同', date: '2026-05-12', time: '上午 10:00', note: '水費與公用天然氣', isShared: true },
+    { id: 't8', title: '週末家庭聚餐', amount: 2100, type: 'expense', payer: '爸爸', category: '飲食', splitType: '共同', date: '2026-05-10', time: '下午 01:00', note: '母親節餐廳慶祝', isShared: true },
+    { id: 't9', title: '阿偉例行健康檢查與疫苗', amount: 8800, type: 'expense', payer: '爸爸', category: '寵物', splitType: '共同', date: '2026-05-08', time: '下午 03:00', note: '寵物醫院健康檢查', isShared: true },
+    { id: 't10', title: '有機超市水果採買', amount: 5600, type: 'expense', payer: '媽媽', category: '飲食', splitType: '共同', date: '2026-05-05', time: '下午 04:20', note: '進口櫻桃與鮮奶', isShared: true },
+  ];
+  const INITIAL_PENDING_PAYMENTS = [
+    { id: 'p1', title: '妹妹代付：媽媽買衣服', description: '個人代墊款項', amount: 1000, paidBy: '妹妹', owedBy: '媽媽', status: 'pending', date: '2026-05-20' },
+  ];
+
+  const PRESET_CHIPS = [
+    { label: '阿偉罐罐 🐱', category: '寵物', amount: 450 },
+    { label: '日常伙食 🍲', category: '飲食', amount: 350 },
+    { label: '採購日用品 🧴', category: '居家', amount: 680 },
+    { label: '賣場掃貨 🛒', category: '飲食', amount: 1500 },
+    { label: '家庭聚餐 🍲', category: '飲食', amount: 1800 },
+    { label: '交通加值 🚌', category: '交通', amount: 500 },
+  ];
+  const MODAL_CATEGORIES = ['寵物', '飲食', '居家', '交通', '娛樂', '醫療', '其他'];
+  const LIST_CATEGORIES = ['全部', '寵物', '飲食', '居家', '交通', '娛樂', '收入'];
+  const PRESET_COLORS = ['#4a654a', '#be9c47', '#334d34', '#8ba889', '#e07a5f', '#3d405b', '#81b29a', '#d4a373', '#e09f3e', '#9b5de5'];
+
+  const CAT_ADVICE_POOL = [
+    '本週大家平攤做得非常好喵！繼續保持，阿偉替你們加油～',
+    '外食少一點、罐罐多一點，這樣阿偉最開心喵！🐾',
+    '看到你們把水電費一起分擔，帳目清清楚楚，真是模範家庭喵！',
+    '存錢就像曬太陽，一點一點累積就會暖暖的喵～',
+    '這個月寵物開銷有控制住喔，阿偉覺得很棒喵！朝旅行基金前進吧！',
+  ];
+
+  /* ---- HTML-escape helper for user-entered text ---- */
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function ic(name, cls) { return '<i data-lucide="' + name + '" class="' + (cls || '') + '"></i>'; }
+
+  /* =========================== STATE =========================== */
+  function load(key, fallback) {
+    const saved = localStorage.getItem(key);
+    if (saved) { try { return JSON.parse(saved); } catch (e) { console.error(e); } }
+    return fallback;
+  }
+
+  const state = {
+    currentTab: 'settlement',
+    transactions: load('household_transactions_v1', INITIAL_TRANSACTIONS),
+    pendingPayments: load('household_pending_v1', INITIAL_PENDING_PAYMENTS),
+    members: load('household_members_v1', INITIAL_MEMBERS),
+    isAddModalOpen: false,
+    isSettingsOpen: false,
+    editingTransactionId: null,
+    toastMessage: null,
+    // settlement view
+    sv: { period: '本週', memberFilter: '所有人', catAdvice: '本週的外食支出比上週減少了 12% 喵！繼續保持，目標是省下夏日旅行的基金。', isLoadingAdvice: false },
+    // transactions view
+    tv: { searchQuery: '', selectedCategory: '全部', activeItemId: null },
+    // add/edit form
+    form: null,
+    // settings
+    settings: { resetConfirmed: false, isAddingMember: false, newMemberName: '', newMemberColor: '#8ba889', editingId: null, editingName: '', editingColor: '' },
+  };
+
+  let toastTimer = null;
+
+  /* =========================== CLOUD SYNC (Google Apps Script Web API) =========================== */
+  // The Web App /exec URL is entered by the user in the Settings modal and cached here.
+  const CONFIG = { API_URL: localStorage.getItem('household_api_url') || '' };
+  let pushTimer = null;
+  let suspendPush = false; // true while applying data pulled from the server (avoid echo push)
+
+  function persistLocal() {
+    localStorage.setItem('household_transactions_v1', JSON.stringify(state.transactions));
+    localStorage.setItem('household_pending_v1', JSON.stringify(state.pendingPayments));
+    localStorage.setItem('household_members_v1', JSON.stringify(state.members));
+  }
+
+  // Any state mutation calls persist() -> caches locally AND mirrors the full
+  // dataset to the Google Sheet (debounced) so the sheet always matches the app.
+  function persist() {
+    persistLocal();
+    if (!suspendPush) syncPush();
+  }
+
+  function syncPush() {
+    if (!CONFIG.API_URL) return;
+    if (pushTimer) clearTimeout(pushTimer);
+    pushTimer = setTimeout(() => {
+      fetch(CONFIG.API_URL, {
+        method: 'POST',
+        // text/plain keeps this a CORS "simple request" (no preflight to Apps Script)
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: 'saveAll',
+          members: state.members,
+          transactions: state.transactions,
+          pendingPayments: state.pendingPayments,
+        }),
+      })
+        .then(r => r.json())
+        .then(d => { if (!d || !d.ok) console.error('saveAll error', d); })
+        .catch(e => { console.error('syncPush failed', e); showToast('⚠️ 雲端同步失敗（已存本機）'); });
+    }, 600);
+  }
+
+  function syncPull(opts) {
+    opts = opts || {};
+    if (!CONFIG.API_URL) return;
+    fetch(CONFIG.API_URL, { method: 'GET' })
+      .then(r => r.json())
+      .then(d => {
+        if (!d || !Array.isArray(d.transactions)) throw new Error('bad payload');
+        suspendPush = true;
+        state.transactions = d.transactions;
+        state.pendingPayments = Array.isArray(d.pendingPayments) ? d.pendingPayments : [];
+        state.members = Array.isArray(d.members) && d.members.length ? d.members : state.members;
+        persistLocal();
+        suspendPush = false;
+        render('all');
+        if (opts.toast) showToast('✅ 已從 Google Sheet 載入最新資料');
+      })
+      .catch(e => {
+        console.error('syncPull failed', e);
+        if (opts.toast) showToast('⚠️ 無法連線雲端，改用本機資料');
+      });
+  }
+
+  function showToast(msg) {
+    state.toastMessage = msg;
+    render('all');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { state.toastMessage = null; render('shell'); }, 3000);
+  }
+
+  /* =========================== VIEWS =========================== */
+  function headerTitle() {
+    switch (state.currentTab) {
+      case 'settlement': return '費用結算';
+      case 'transactions': return '帳務明細';
+      case 'overview': return '帳務總覽';
+      default: return '費用結算';
+    }
+  }
+
+  function renderHeader() {
+    return '' +
+    '<header class="w-full top-0 sticky bg-[#fef8f1] shadow-xs z-40 flex justify-between items-center px-4 py-3 border-b border-[#f3ede6]">' +
+      '<div class="flex items-center gap-3">' +
+        '<div class="w-10 h-10 rounded-full border-2 border-[#8ba889] overflow-hidden shadow-xs flex-shrink-0">' +
+          '<img src="' + CAT_AVATAR + '" alt="阿偉 A-Wei Cat Avatar" class="w-full h-full object-cover">' +
+        '</div>' +
+        '<h1 class="font-display font-bold text-2xl text-[#4a654a] tracking-tight">' + esc(headerTitle()) + '</h1>' +
+      '</div>' +
+      '<button onclick="App.openSettings()" class="p-2 rounded-full text-[#434841] hover:bg-[#ede7e0] active:scale-95 transition-all cursor-pointer" title="開啟設定">' +
+        ic('settings', 'w-6 h-6 text-[#4a654a]') +
+      '</button>' +
+    '</header>';
+  }
+
+  function renderBottomNav() {
+    const tab = state.currentTab;
+    const cls = (active) => 'flex flex-col items-center justify-center px-4 py-1.5 rounded-full transition-all duration-200 cursor-pointer squishy-btn ' +
+      (active ? 'bg-[#8ba889] text-[#243d25] font-semibold' : 'text-[#434841] hover:bg-[#e7e2db]');
+    return '' +
+    '<nav class="fixed bottom-0 left-0 right-0 w-full max-w-md mx-auto flex justify-around items-center px-4 pb-5 pt-2 bg-[#f9f3ec] z-50 rounded-t-2xl shadow-[0_-4px_20px_0_rgba(74,69,63,0.08)] border-t border-[#ede7e0]">' +
+      '<button onclick="App.selectTab(\'overview\')" class="' + cls(tab === 'overview') + '">' +
+        ic('layout-grid', 'w-5 h-5 mb-0.5') + '<span class="text-xs">總覽</span></button>' +
+      '<button onclick="App.openAdd()" class="flex flex-col items-center justify-center px-4 py-1.5 rounded-full text-[#434841] hover:bg-[#e7e2db] transition-all duration-200 cursor-pointer squishy-btn">' +
+        ic('plus-circle', 'w-5 h-5 mb-0.5 text-[#4a654a]') + '<span class="text-xs font-medium">記帳</span></button>' +
+      '<button onclick="App.selectTab(\'settlement\')" class="' + cls(tab === 'settlement') + '">' +
+        ic('receipt', 'w-5 h-5 mb-0.5') + '<span class="text-xs">結算</span></button>' +
+      '<button onclick="App.selectTab(\'transactions\')" class="' + cls(tab === 'transactions') + '">' +
+        ic('history', 'w-5 h-5 mb-0.5') + '<span class="text-xs">明細</span></button>' +
+    '</nav>';
+  }
+
+  /* ---------- Settlement View ---------- */
+  function renderSettlementView() {
+    const sv = state.sv;
+    const summary = calculateSharedSummary(state.transactions, sv.period, sv.memberFilter, state.members);
+    const sharedTransactions = state.transactions
+      .filter(t => t.type === 'expense' && (t.isShared || t.splitType === '共同')).slice(0, 5);
+    const activePending = state.pendingPayments.filter(p => p.status === 'pending');
+
+    let html = '<div class="space-y-6 pb-24 px-4 pt-4 max-w-md mx-auto">';
+
+    // period + filters
+    html += '<section class="space-y-3"><div class="flex gap-2 overflow-x-auto no-scrollbar py-1">';
+    ['本週', '本月', '自訂範圍'].forEach(p => {
+      const active = sv.period === p;
+      html += '<button onclick="App.setPeriod(\'' + p + '\')" class="flex-shrink-0 px-4 py-2 rounded-full font-medium text-sm transition-all duration-200 cursor-pointer squishy-btn ' +
+        (active ? 'bg-[#8ba889] text-[#243d25] shadow-xs' : 'bg-[#e7e2db] text-[#434841] hover:bg-[#ede7e0]') + '">' + p + '</button>';
+    });
+    html += '</div>';
+
+    html += '<div class="bg-[#f9f3ec] rounded-2xl p-2.5 flex items-center gap-2 shadow-xs border border-[#ede7e0] overflow-x-auto no-scrollbar">' +
+      ic('filter', 'w-4 h-4 text-[#737971] ml-1 flex-shrink-0') + '<div class="flex gap-1.5">';
+    ['所有人'].concat(state.members.map(m => m.name)).forEach(m => {
+      const active = sv.memberFilter === m;
+      html += '<button onclick="App.setMemberFilter(\'' + esc(m) + '\')" class="px-3 py-1 rounded-full text-xs font-semibold transition-all duration-150 cursor-pointer ' +
+        (active ? 'bg-[#ffdd67] text-[#766100] border border-[#715c00]/10 shadow-2xs' : 'bg-[#e7e2db] text-[#434841] hover:bg-[#ede7e0]') + '">' + esc(m) + '</button>';
+    });
+    html += '</div></div></section>';
+
+    // summary hero
+    html += '<section class="relative bg-[#4a654a] text-white rounded-[2rem] p-5 overflow-hidden shadow-lg border border-[#334d34]">' +
+      '<div class="absolute inset-0 grain-texture pointer-events-none opacity-20"></div>' +
+      '<div class="relative z-10">' +
+        '<p class="text-xs text-white/80 font-medium tracking-wider uppercase mb-1">' + (sv.period === '本週' ? '本期共享分擔總額' : '總共分擔金額') + '</p>' +
+        '<h2 class="font-display font-bold text-3xl sm:text-4xl tracking-tight mb-4 text-[#ffdd67]">$ ' + formatNumber(summary.totalShared) + '</h2>' +
+        '<div class="receipt-divider my-4"></div>' +
+        '<div class="space-y-3 text-sm">';
+    summary.memberBreakdown.forEach(item => {
+      html += '<div class="flex justify-between items-center"><div class="flex items-center gap-2.5">' +
+        '<div class="w-3 h-3 rounded-full flex-shrink-0" style="background-color:' + item.color + '"></div>' +
+        '<span class="font-medium text-white/90">' + esc(item.name) + ' 支付了</span></div>' +
+        '<span class="font-bold text-white font-display text-base">$ ' + formatNumber(item.paid) + '</span></div>';
+    });
+    html += '</div></div></section>';
+
+    // bar chart
+    html += '<section class="bg-white rounded-[2rem] p-5 shadow-xs border border-[#ede7e0] space-y-3">' +
+      '<div class="flex items-center justify-between"><h3 class="font-display font-bold text-lg text-[#4a654a]">支出的比例</h3>' +
+      ic('pie-chart', 'w-5 h-5 text-[#737971]') + '</div><div class="space-y-2">' +
+      '<div class="relative h-6 w-full bg-[#f3ede6] rounded-full overflow-hidden flex shadow-inner">';
+    summary.memberBreakdown.forEach(m => {
+      html += '<div class="h-full transition-all duration-500 relative" style="width:' + m.percent + '%;background-color:' + m.color + '" title="' + esc(m.name) + ' ' + m.percent + '%">' +
+        '<div class="absolute inset-0 grain-texture opacity-10"></div></div>';
+    });
+    html += '</div><div class="flex flex-wrap gap-x-4 gap-y-1 text-xs font-medium text-[#434841] pt-1">';
+    summary.memberBreakdown.forEach(m => {
+      html += '<div class="flex items-center gap-1.5"><div class="w-3 h-3 rounded-full flex-shrink-0" style="background-color:' + m.color + '"></div>' +
+        '<span>' + esc(m.name) + ' (' + m.percent + '%)</span></div>';
+    });
+    html += '</div></div></section>';
+
+    // pending payments
+    if (activePending.length > 0) {
+      html += '<section class="space-y-3"><div class="flex items-center justify-between px-1">' +
+        '<h3 class="font-display font-bold text-lg text-[#1d1b17]">待結清代付款項</h3>' +
+        '<span class="px-2.5 py-0.5 bg-[#ffdf96] text-[#765a05] text-xs font-semibold rounded-full">待處理</span></div>';
+      activePending.forEach(item => {
+        html += '<div class="bg-white rounded-[2rem] p-5 shadow-xs border border-[#ffdd67]/40 space-y-4 transition-all hover:shadow-md">' +
+          '<div class="flex items-center justify-between"><div class="flex items-center gap-3">' +
+          '<div class="w-12 h-12 rounded-2xl bg-[#ffdd67]/30 flex items-center justify-center text-[#715c00]">' + ic('user-check', 'w-6 h-6') + '</div>' +
+          '<div><p class="font-medium text-[#1d1b17] text-base">' + esc(item.title) + '</p>' +
+          '<p class="text-xs text-[#737971]">' + esc(item.description) + '</p></div></div>' +
+          '<div class="text-right"><p class="font-display font-bold text-xl text-[#715c00]">$ ' + formatNumber(item.amount) + '</p></div></div>' +
+          '<button onclick="App.settlePending(\'' + item.id + '\')" class="w-full py-2.5 bg-[#ffdd67] hover:bg-[#ffe17a] text-[#766100] rounded-xl font-semibold text-sm transition-all active:scale-95 flex items-center justify-center gap-2 shadow-2xs cursor-pointer">' +
+          ic('wallet', 'w-4 h-4') + '<span>點擊結算</span></button></div>';
+      });
+      html += '</section>';
+    }
+
+    // shared list
+    html += '<section class="space-y-3"><div class="flex items-center justify-between px-1">' +
+      '<h3 class="font-display font-bold text-lg text-[#1d1b17]">共享帳目明細</h3>' +
+      '<button onclick="App.openAdd()" class="text-xs text-[#4a654a] font-semibold hover:underline flex items-center gap-0.5">' +
+      ic('plus', 'w-3.5 h-3.5') + '新增帳目</button></div><div class="space-y-2">';
+    sharedTransactions.forEach(t => {
+      let iconName = 'shopping-bag', iconBg = 'bg-[#8ba889]/20 text-[#4a654a]';
+      if (t.category === '居家') { iconName = 'zap'; iconBg = 'bg-[#ffdd67]/30 text-[#715c00]'; }
+      else if (t.category === '飲食') { iconName = 'utensils'; iconBg = 'bg-[#be9c47]/20 text-[#765a05]'; }
+      const when = t.date.indexOf('2026-05-24') !== -1 ? '今天' : (t.date.indexOf('2026-05-23') !== -1 ? '昨天' : t.date.slice(5));
+      html += '<div class="bg-[#f9f3ec] rounded-2xl p-4 flex items-center justify-between hover:bg-[#f3ede6] transition-colors cursor-pointer shadow-2xs group">' +
+        '<div class="flex items-center gap-3"><div class="w-12 h-12 rounded-2xl ' + iconBg + ' flex items-center justify-center">' + ic(iconName, 'w-5 h-5') + '</div>' +
+        '<div><p class="font-semibold text-sm text-[#1d1b17]">' + esc(t.title) + '</p>' +
+        '<p class="text-xs text-[#737971]">' + esc(when) + ' • ' + esc(t.payer) + ' 支付</p></div></div>' +
+        '<p class="font-display font-bold text-base text-[#4a654a]">$ ' + formatNumber(t.amount) + '</p></div>';
+    });
+    html += '</div></section>';
+
+    // cat advice
+    html += '<section class="relative flex items-center gap-3 p-4 bg-white/80 backdrop-blur-md rounded-2xl border border-[#4a654a]/15 shadow-xs">' +
+      '<div class="w-14 h-14 flex-shrink-0 relative"><img src="' + CAT_AVATAR + '" alt="阿偉" class="w-full h-full object-cover rounded-full border-2 border-[#8ba889]">' +
+      '<div class="absolute -top-1 -right-1 w-5 h-5 bg-[#715c00] rounded-full border-2 border-white flex items-center justify-center shadow-xs">' + ic('lightbulb', 'w-3 h-3 text-white') + '</div></div>' +
+      '<div class="flex-1"><p class="text-xs sm:text-sm text-[#434841] leading-relaxed">' + esc(sv.catAdvice) + '</p>' +
+      '<button onclick="App.fetchAdvice()" ' + (sv.isLoadingAdvice ? 'disabled' : '') + ' class="mt-2 text-xs font-semibold text-[#4a654a] hover:text-[#243d25] flex items-center gap-1 cursor-pointer">' +
+      ic('sparkles', 'w-3.5 h-3.5 text-[#be9c47]') + '<span>' + (sv.isLoadingAdvice ? '阿偉思考中喵...' : '點擊獲取阿偉理財貓語錄 🐾') + '</span></button></div></section>';
+
+    html += '</div>';
+    return html;
+  }
+
+  /* ---------- Transactions View ---------- */
+  function txIconAndBg(category, type) {
+    if (type === 'income') return { icon: 'wallet', bg: 'bg-[#ffdd67] text-[#766100]' };
+    switch (category) {
+      case '寵物': return { icon: 'paw-print', bg: 'bg-[#ffdd67] text-[#766100]' };
+      case '飲食': return { icon: 'utensils', bg: 'bg-[#8ba889] text-[#243d25]' };
+      case '交通': return { icon: 'bus', bg: 'bg-[#e7e2db] text-[#434841]' };
+      case '居家': return { icon: 'zap', bg: 'bg-[#ffdad6] text-[#93000a]' };
+      case '娛樂': return { icon: 'shopping-bag', bg: 'bg-[#be9c47]/20 text-[#765a05]' };
+      case '醫療': return { icon: 'heart-pulse', bg: 'bg-red-100 text-red-700' };
+      default: return { icon: 'more-horizontal', bg: 'bg-gray-200 text-gray-700' };
+    }
+  }
+  function badgeStyle(splitType, category) {
+    if (category === '寵物') return 'bg-[#ffdf96] text-[#251a00]';
+    if (splitType === '個人') return 'bg-[#ccebc8] text-[#07200b]';
+    if (splitType === '收入') return 'bg-[#ffe17a] text-[#231b00]';
+    return 'bg-[#ffdf96] text-[#251a00]';
+  }
+
+  function renderTransactionsView() {
+    const tv = state.tv;
+    const q = tv.searchQuery.toLowerCase();
+    const filtered = state.transactions.filter(t => {
+      const matchesSearch = t.title.toLowerCase().indexOf(q) !== -1 ||
+        t.payer.toLowerCase().indexOf(q) !== -1 ||
+        (t.note && t.note.toLowerCase().indexOf(q) !== -1);
+      const matchesCategory = tv.selectedCategory === '全部' ? true : t.category === tv.selectedCategory;
+      return matchesSearch && matchesCategory;
+    });
+    const groups = {};
+    const order = [];
+    filtered.forEach(t => {
+      let label = t.date;
+      if (t.date === '2026-05-24') label = '今天, 5月24日';
+      else if (t.date === '2026-05-23') label = '昨天, 5月23日';
+      else if (t.date === '2026-05-22') label = '前天, 5月22日';
+      if (!groups[label]) { groups[label] = []; order.push(label); }
+      groups[label].push(t);
+    });
+
+    let html = '<div class="space-y-6 pb-24 px-4 pt-4 max-w-md mx-auto">';
+
+    // search + categories
+    html += '<section class="space-y-3">' +
+      '<div class="bg-[#f9f3ec] rounded-2xl px-4 py-2.5 flex items-center gap-2 shadow-xs border border-[#c3c8bf]/30 focus-within:ring-2 focus-within:ring-[#4a654a]/30 transition-all">' +
+      ic('search', 'w-5 h-5 text-[#737971]') +
+      '<input id="search-input" type="text" value="' + esc(tv.searchQuery) + '" oninput="App.setSearch(this.value)" placeholder="搜尋明細 (例如：阿維)" class="bg-transparent border-none outline-none w-full text-sm text-[#1d1b17] placeholder:text-[#737971]/60">';
+    if (tv.searchQuery) {
+      html += '<button onclick="App.setSearch(\'\')" class="text-[#737971] hover:text-[#1d1b17]">' + ic('x', 'w-4 h-4') + '</button>';
+    }
+    html += '</div><div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">';
+    LIST_CATEGORIES.forEach(cat => {
+      const active = tv.selectedCategory === cat;
+      html += '<button onclick="App.setCategory(\'' + esc(cat) + '\')" class="px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-150 cursor-pointer squishy-btn ' +
+        (active ? 'bg-[#8ba889] text-[#243d25] font-semibold shadow-2xs' : 'bg-[#ede7e0] text-[#434841] hover:bg-[#e7e2db]') + '">' + cat + '</button>';
+    });
+    html += '</div></section>';
+
+    // list
+    html += '<div class="space-y-6">';
+    if (order.length === 0) {
+      html += '<div class="text-center py-12 text-[#737971]">' + ic('paw-print', 'w-12 h-12 mx-auto text-[#8ba889]/60 mb-2') +
+        '<p class="text-sm">沒有找到相關帳務明細喵～</p></div>';
+    } else {
+      order.forEach(dateGroup => {
+        html += '<div><h3 class="text-xs font-semibold text-[#737971] uppercase tracking-wider mb-2 px-1">' + esc(dateGroup) + '</h3>' +
+          '<div class="bg-white rounded-2xl shadow-[0_4px_20px_0_rgba(74,69,63,0.05)] overflow-hidden border border-[#ede7e0]">';
+        groups[dateGroup].forEach((item, index) => {
+          const info = txIconAndBg(item.category, item.type);
+          const isIncome = item.type === 'income';
+          if (index > 0) html += '<div class="mx-4 border-t border-dashed border-[#c3c8bf]/30"></div>';
+          html += '<div onclick="App.openItem(\'' + item.id + '\')" class="flex items-center gap-3 px-4 py-3.5 hover:bg-[#f9f3ec] transition-colors cursor-pointer group">' +
+            '<div class="w-12 h-12 rounded-2xl ' + info.bg + ' flex items-center justify-center flex-shrink-0 shadow-2xs">' + ic(info.icon, 'w-6 h-6') + '</div>' +
+            '<div class="flex-1 min-w-0"><div class="flex justify-between items-start">' +
+            '<span class="font-display font-semibold text-base text-[#1d1b17] truncate pr-2">' + esc(item.title) + '</span>' +
+            '<span class="font-display font-bold text-base flex-shrink-0 ' + (isIncome ? 'text-[#4a654a]' : 'text-[#ba1a1a]') + '">' +
+            (isIncome ? '+' : '-') + ' $' + formatNumber(item.amount) + '</span></div>' +
+            '<div class="flex items-center gap-2 mt-1">' +
+            '<span class="text-[10px] px-2 py-0.5 rounded font-bold uppercase ' + badgeStyle(item.splitType, item.category) + '">' +
+            (item.category === '寵物' ? '寵物' : esc(item.splitType)) + '</span>' +
+            '<span class="text-[#737971] text-xs truncate">' + esc(item.time || '全天') + ' · ' + esc(item.payer) + ' 支付' + (item.note ? ' · ' + esc(item.note) : '') + '</span>' +
+            '</div></div></div>';
+        });
+        html += '</div></div>';
+      });
+    }
+    html += '</div>';
+
+    // ambient banner
+    html += '<div class="mt-8 flex justify-center"><div class="bg-[#8ba889]/20 p-4 rounded-2xl flex items-center gap-3 border border-[#4a654a]/10 max-w-xs relative shadow-xs">' +
+      '<div class="w-12 h-12 rounded-full overflow-hidden border-2 border-white shadow-xs flex-shrink-0"><img src="' + CAT_AVATAR + '" alt="阿偉" class="w-full h-full object-cover"></div>' +
+      '<p class="text-[#243d25] text-xs leading-relaxed font-medium">「這個月在寵物開銷上比上個月減少了 15% 喔，阿偉覺得很棒喵！」</p></div></div>';
+
+    html += '</div>';
+    return html;
+  }
+
+  /* ---------- Overview View ---------- */
+  function renderOverviewView() {
+    const totalIncome = state.transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+    const totalExpense = state.transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+    const monthlyBudget = 50000;
+    const budgetUsedPercent = Math.min(100, Math.round((totalExpense / monthlyBudget) * 100));
+    const categoryTotals = {};
+    state.transactions.filter(t => t.type === 'expense').forEach(t => {
+      categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
+    });
+    const sortedCategories = Object.keys(categoryTotals).map(k => [k, categoryTotals[k]]).sort((a, b) => b[1] - a[1]);
+
+    let html = '<div class="space-y-6 pb-24 px-4 pt-4 max-w-md mx-auto">';
+
+    html += '<section class="bg-white rounded-[2rem] p-5 shadow-xs border border-[#ede7e0] space-y-4">' +
+      '<div class="flex justify-between items-center"><div>' +
+      '<span class="text-xs text-[#737971] font-medium">5月家庭預算概況</span>' +
+      '<h2 class="font-display font-bold text-2xl text-[#1d1b17]">$ ' + formatNumber(totalExpense) + ' <span class="text-xs font-normal text-[#737971]">/ $ ' + formatNumber(monthlyBudget) + ' 預算</span></h2></div>' +
+      '<div class="w-10 h-10 rounded-full bg-[#8ba889]/20 flex items-center justify-center text-[#4a654a]">' + ic('piggy-bank', 'w-5 h-5') + '</div></div>' +
+      '<div class="space-y-1.5"><div class="flex justify-between text-xs font-medium">' +
+      '<span class="text-[#4a654a]">已使用 ' + budgetUsedPercent + '%</span>' +
+      '<span class="text-[#737971]">剩餘 $ ' + formatNumber(Math.max(0, monthlyBudget - totalExpense)) + '</span></div>' +
+      '<div class="w-full h-3 bg-[#f3ede6] rounded-full overflow-hidden shadow-inner">' +
+      '<div class="h-full transition-all duration-500 ' + (budgetUsedPercent > 90 ? 'bg-red-500' : (budgetUsedPercent > 70 ? 'bg-[#be9c47]' : 'bg-[#4a654a]')) + '" style="width:' + budgetUsedPercent + '%"></div>' +
+      '</div></div></section>';
+
+    html += '<div class="grid grid-cols-2 gap-3">' +
+      '<div class="bg-[#f9f3ec] p-4 rounded-2xl border border-[#ede7e0] space-y-1"><div class="flex items-center gap-1.5 text-xs text-[#4a654a] font-semibold">' +
+      ic('trending-up', 'w-4 h-4') + '<span>總收入</span></div><p class="font-display font-bold text-lg text-[#1d1b17]">$ ' + formatNumber(totalIncome) + '</p></div>' +
+      '<div class="bg-[#f9f3ec] p-4 rounded-2xl border border-[#ede7e0] space-y-1"><div class="flex items-center gap-1.5 text-xs text-[#ba1a1a] font-semibold">' +
+      ic('trending-down', 'w-4 h-4') + '<span>總支出</span></div><p class="font-display font-bold text-lg text-[#1d1b17]">$ ' + formatNumber(totalExpense) + '</p></div></div>';
+
+    html += '<div class="flex gap-3">' +
+      '<button onclick="App.openAdd()" class="flex-1 py-3 bg-[#8ba889] hover:bg-[#4a654a] text-white rounded-2xl font-semibold text-sm transition-all active:scale-95 flex items-center justify-center gap-2 shadow-xs cursor-pointer">' +
+      ic('plus-circle', 'w-4 h-4') + '<span>快速記帳</span></button>' +
+      '<button onclick="App.selectTab(\'settlement\')" class="flex-1 py-3 bg-[#ffdd67] hover:bg-[#ffe17a] text-[#766100] rounded-2xl font-semibold text-sm transition-all active:scale-95 flex items-center justify-center gap-2 shadow-xs cursor-pointer">' +
+      ic('receipt', 'w-4 h-4') + '<span>費用分算</span></button></div>';
+
+    html += '<section class="bg-white rounded-[2rem] p-5 shadow-xs border border-[#ede7e0] space-y-4">' +
+      '<div class="flex justify-between items-center"><h3 class="font-display font-bold text-base text-[#1d1b17] flex items-center gap-2">' +
+      ic('pie-chart', 'w-4 h-4 text-[#4a654a]') + '<span>支出類別分析</span></h3></div><div class="space-y-3">';
+    sortedCategories.slice(0, 4).forEach(entry => {
+      const cat = entry[0], amt = entry[1];
+      const pct = Math.round((amt / (totalExpense || 1)) * 100);
+      html += '<div class="space-y-1"><div class="flex justify-between text-xs font-medium">' +
+        '<span class="text-[#1d1b17]">' + esc(cat) + '</span>' +
+        '<span class="text-[#737971]">$ ' + formatNumber(amt) + ' (' + pct + '%)</span></div>' +
+        '<div class="w-full h-2 bg-[#f3ede6] rounded-full overflow-hidden"><div class="h-full bg-[#8ba889]" style="width:' + pct + '%"></div></div></div>';
+    });
+    html += '</div></section>';
+
+    html += '<section class="bg-[#f9f3ec] rounded-[2rem] p-5 border border-[#ede7e0] space-y-3">' +
+      '<h3 class="font-display font-bold text-base text-[#1d1b17] flex items-center gap-2">' + ic('users', 'w-4 h-4 text-[#4a654a]') + '<span>家庭成員與帳戶狀態</span></h3>' +
+      '<div class="grid grid-cols-2 gap-2">';
+    state.members.forEach(m => {
+      const memberPaid = state.transactions.filter(t => t.payer === m.name && t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+      html += '<div class="bg-white p-3 rounded-xl border border-[#ede7e0] space-y-1">' +
+        '<div class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-full" style="background-color:' + m.color + '"></div>' +
+        '<span class="text-xs font-semibold text-[#1d1b17]">' + esc(m.name) + '</span></div>' +
+        '<p class="text-xs text-[#737971]">已支付 $ ' + formatNumber(memberPaid) + '</p></div>';
+    });
+    html += '</div></section></div>';
+    return html;
+  }
+
+  /* ---------- Add / Edit Modal ---------- */
+  function renderAddModal() {
+    if (!state.isAddModalOpen) return '';
+    const f = state.form;
+    const isEditing = !!state.editingTransactionId;
+
+    let html = '<div class="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">' +
+      '<div class="bg-white w-full max-w-md rounded-t-[2.5rem] sm:rounded-[2.5rem] p-6 shadow-2xl border border-[#ede7e0] space-y-5 ' + (animateAdd ? 'animate-in slide-in-from-bottom duration-200' : '') + '">' +
+      '<div class="flex justify-between items-center pb-2 border-b border-[#f3ede6]">' +
+      '<h2 class="font-display font-bold text-xl text-[#1d1b17]">' + (isEditing ? '編輯帳務紀錄' : '新增帳務紀錄') + '</h2>' +
+      '<button onclick="App.closeAdd()" class="p-1 text-[#737971] hover:text-[#1d1b17] rounded-full hover:bg-[#ede7e0]">' + ic('x', 'w-5 h-5') + '</button></div>';
+
+    html += '<form onsubmit="App.submitForm(event)" class="space-y-4">';
+
+    // type switch
+    html += '<div class="bg-[#f9f3ec] p-1 rounded-2xl flex gap-1 border border-[#ede7e0]">' +
+      '<button type="button" onclick="App.setFormType(\'expense\')" class="flex-1 py-2 rounded-xl text-xs font-semibold transition-all ' +
+      (f.type === 'expense' ? 'bg-[#8ba889] text-[#243d25] shadow-2xs' : 'text-[#737971]') + '">支出 (Expense)</button>' +
+      '<button type="button" onclick="App.setFormType(\'income\')" class="flex-1 py-2 rounded-xl text-xs font-semibold transition-all ' +
+      (f.type === 'income' ? 'bg-[#ffdd67] text-[#766100] shadow-2xs' : 'text-[#737971]') + '">收入 (Income)</button></div>';
+
+    // amount
+    html += '<div><label class="text-xs text-[#737971] font-medium block mb-1">金額 (NT$)</label>' +
+      '<div class="relative flex items-center"><span class="absolute left-4 font-display font-bold text-2xl text-[#4a654a]">$</span>' +
+      '<input id="add-amount" type="number" step="any" required value="' + esc(f.amount) + '" oninput="App.updateForm(\'amount\', this.value)" placeholder="0" ' +
+      'class="w-full bg-[#f9f3ec] rounded-2xl pl-10 pr-4 py-3 font-display font-bold text-2xl text-[#1d1b17] border border-[#ede7e0] focus:ring-2 focus:ring-[#8ba889] outline-none"></div></div>';
+
+    // presets
+    if (f.type === 'expense') {
+      html += '<div class="space-y-1"><span class="text-[11px] text-[#737971] font-medium block">快速輸入預設：</span>' +
+        '<div class="flex gap-1.5 overflow-x-auto no-scrollbar py-1">';
+      PRESET_CHIPS.forEach((preset, i) => {
+        html += '<button type="button" onclick="App.applyPreset(' + i + ')" class="px-2.5 py-1 bg-[#ede7e0] hover:bg-[#8ba889]/30 text-xs font-medium text-[#434841] rounded-full whitespace-nowrap transition-all active:scale-95 cursor-pointer">' + esc(preset.label) + '</button>';
+      });
+      html += '</div></div>';
+    }
+
+    // title
+    html += '<div><label class="text-xs text-[#737971] font-medium block mb-1">名稱 / 店家</label>' +
+      '<input id="add-title" type="text" required value="' + esc(f.title) + '" oninput="App.updateForm(\'title\', this.value)" placeholder="例如：賣場掃貨、給阿偉的罐罐" ' +
+      'class="w-full bg-[#f9f3ec] rounded-xl px-4 py-2.5 text-sm text-[#1d1b17] border border-[#ede7e0] focus:ring-2 focus:ring-[#8ba889] outline-none"></div>';
+
+    // payer
+    html += '<div><label class="text-xs text-[#737971] font-medium block mb-1">付款人 (誰出錢？)</label><div class="flex gap-2">';
+    state.members.forEach(m => {
+      html += '<button type="button" onclick="App.setFormPayer(\'' + esc(m.name) + '\')" class="flex-1 py-2 rounded-xl text-xs font-semibold transition-all ' +
+        (f.payer === m.name ? 'bg-[#4a654a] text-white shadow-xs' : 'bg-[#ede7e0] text-[#434841]') + '">' + esc(m.name) + '</button>';
+    });
+    html += '</div></div>';
+
+    // category + split (expense only)
+    if (f.type === 'expense') {
+      html += '<div><label class="text-xs text-[#737971] font-medium block mb-1">類別</label><div class="flex gap-1.5 overflow-x-auto no-scrollbar py-1">';
+      MODAL_CATEGORIES.forEach(cat => {
+        html += '<button type="button" onclick="App.setFormCategory(\'' + esc(cat) + '\')" class="px-3 py-1.5 rounded-full text-xs font-medium transition-all ' +
+          (f.category === cat ? 'bg-[#8ba889] text-[#243d25] font-semibold' : 'bg-[#ede7e0] text-[#434841]') + '">' + cat + '</button>';
+      });
+      html += '</div></div>';
+
+      html += '<div><label class="text-xs text-[#737971] font-medium block mb-1">分攤方式</label><div class="flex gap-2">' +
+        '<button type="button" onclick="App.setFormSplit(\'共同\')" class="flex-1 py-2 rounded-xl text-xs font-semibold transition-all ' +
+        (f.splitType === '共同' ? 'bg-[#ffdd67] text-[#766100]' : 'bg-[#ede7e0] text-[#434841]') + '">共同分擔 (全家平攤)</button>' +
+        '<button type="button" onclick="App.setFormSplit(\'個人\')" class="flex-1 py-2 rounded-xl text-xs font-semibold transition-all ' +
+        (f.splitType === '個人' ? 'bg-[#ccebc8] text-[#07200b]' : 'bg-[#ede7e0] text-[#434841]') + '">個人獨付</button></div></div>';
+
+      // 代付 (advance payment) toggle
+      html += '<div class="bg-[#f9f3ec] rounded-2xl p-3 border ' + (f.isAdvance ? 'border-[#ffdd67]' : 'border-[#ede7e0]') + ' space-y-3">' +
+        '<label class="flex items-center gap-2.5 cursor-pointer select-none">' +
+        '<input type="checkbox" ' + (f.isAdvance ? 'checked' : '') + ' onchange="App.toggleAdvance()" class="w-4 h-4 rounded accent-[#4a654a] cursor-pointer">' +
+        '<span class="flex items-center gap-1.5 text-xs font-semibold text-[#1d1b17]">' + ic('user-check', 'w-4 h-4 text-[#715c00]') + '這是代付款項（先幫別人付，需對方償還）</span></label>';
+      if (f.isAdvance) {
+        const owers = state.members.filter(m => m.name !== f.payer);
+        html += '<div class="animate-in fade-in duration-150"><label class="text-[11px] text-[#737971] font-medium block mb-1">由誰償還（欠款人）</label>' +
+          '<div class="flex gap-1.5 flex-wrap">';
+        if (owers.length === 0) {
+          html += '<span class="text-xs text-[#737971]">請先在設定新增其他家庭成員</span>';
+        } else {
+          owers.forEach(m => {
+            html += '<button type="button" onclick="App.setOwedBy(\'' + esc(m.name) + '\')" class="px-3 py-1.5 rounded-full text-xs font-semibold transition-all ' +
+              (f.owedBy === m.name ? 'bg-[#ffdd67] text-[#766100] shadow-2xs' : 'bg-[#ede7e0] text-[#434841]') + '">' + esc(m.name) + '</button>';
+          });
+        }
+        html += '</div></div>';
+      }
+      html += '</div>';
+    }
+
+    // date + note
+    html += '<div class="grid grid-cols-2 gap-2">' +
+      '<div><label class="text-xs text-[#737971] font-medium block mb-1">日期</label>' +
+      '<input id="add-date" type="date" value="' + esc(f.date) + '" oninput="App.updateForm(\'date\', this.value)" class="w-full bg-[#f9f3ec] rounded-xl px-3 py-2 text-xs text-[#1d1b17] border border-[#ede7e0] outline-none"></div>' +
+      '<div><label class="text-xs text-[#737971] font-medium block mb-1">時間 / 備註</label>' +
+      '<input id="add-note" type="text" value="' + esc(f.note) + '" oninput="App.updateForm(\'note\', this.value)" placeholder="例如：下午 02:30" class="w-full bg-[#f9f3ec] rounded-xl px-3 py-2 text-xs text-[#1d1b17] border border-[#ede7e0] outline-none"></div></div>';
+
+    html += '<button type="submit" class="w-full py-3 bg-[#4a654a] hover:bg-[#334d34] text-white font-bold rounded-2xl text-sm transition-all active:scale-95 shadow-md flex items-center justify-center gap-2 cursor-pointer pt-3">' +
+      ic('check', 'w-5 h-5') + '<span>儲存紀錄</span></button>';
+
+    html += '</form></div></div>';
+    return html;
+  }
+
+  /* ---------- Settings Modal ---------- */
+  function renderSettingsModal() {
+    if (!state.isSettingsOpen) return '';
+    const s = state.settings;
+    let html = '<div class="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">' +
+      '<div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-xl border border-[#ede7e0] space-y-5 ' + (animateSettings ? 'animate-in fade-in zoom-in duration-150 ' : '') + 'max-h-[90vh] overflow-y-auto no-scrollbar">' +
+      '<div class="flex justify-between items-center pb-2 border-b border-[#f3ede6]">' +
+      '<h2 class="font-display font-bold text-xl text-[#1d1b17] flex items-center gap-2"><span>家計簿設定</span></h2>' +
+      '<button onclick="App.closeSettings()" class="p-1 text-[#737971] hover:text-[#1d1b17] rounded-full hover:bg-[#ede7e0]">' + ic('x', 'w-5 h-5') + '</button></div>';
+
+    // cat profile
+    html += '<div class="flex items-center gap-3 p-3 bg-[#f9f3ec] rounded-2xl border border-[#ede7e0]">' +
+      '<img src="' + CAT_AVATAR + '" alt="阿偉" class="w-12 h-12 rounded-full border-2 border-[#8ba889] object-cover">' +
+      '<div><span class="font-bold text-sm text-[#1d1b17] block">貓咪財務管家：阿偉 (A-Wei)</span>' +
+      '<span class="text-xs text-[#737971]">陪伴全家一起省錢、分帳與記帳 🐾</span></div></div>';
+
+    // members management
+    html += '<div class="space-y-3"><div class="flex justify-between items-center">' +
+      '<label class="text-xs text-[#737971] font-semibold block uppercase">付款人 / 家庭成員 (' + state.members.length + ' 人)</label>' +
+      '<button onclick="App.toggleAddMember()" class="text-xs font-bold text-[#4a654a] hover:text-[#243d25] flex items-center gap-1 cursor-pointer bg-[#8ba889]/15 hover:bg-[#8ba889]/30 px-2.5 py-1 rounded-full transition-all">' +
+      ic('user-plus', 'w-3.5 h-3.5') + '<span>新增人員</span></button></div>';
+
+    if (s.isAddingMember) {
+      html += '<form onsubmit="App.addMember(event)" class="p-3 bg-[#f9f3ec] rounded-2xl border border-[#8ba889]/40 space-y-3 ' + (animateMemberForm ? 'animate-in fade-in duration-200' : '') + '">' +
+        '<p class="text-xs font-bold text-[#1d1b17]">新增家庭付款人</p><div class="flex gap-2">' +
+        '<input id="member-new-name" type="text" placeholder="如：哥哥、阿姨" value="' + esc(s.newMemberName) + '" oninput="App.setNewMemberName(this.value)" ' +
+        'class="flex-1 bg-white text-xs px-3 py-2 rounded-xl border border-[#ede7e0] outline-none focus:ring-2 focus:ring-[#8ba889]" required></div>' +
+        '<div class="space-y-1"><span class="text-[10px] text-[#737971] font-semibold block">代表色彩：</span><div class="flex flex-wrap gap-1.5">';
+      PRESET_COLORS.forEach(c => {
+        const active = s.newMemberColor === c;
+        html += '<button type="button" onclick="App.setNewMemberColor(\'' + c + '\')" class="w-6 h-6 rounded-full transition-transform cursor-pointer ' +
+          (active ? 'scale-125 ring-2 ring-offset-1 ring-[#4a654a]' : 'hover:scale-110') + '" style="background-color:' + c + '"></button>';
+      });
+      html += '</div></div><div class="flex gap-2 pt-1">' +
+        '<button type="submit" class="flex-1 py-1.5 bg-[#4a654a] text-white font-semibold text-xs rounded-xl hover:bg-[#243d25] transition-all cursor-pointer">確認新增</button>' +
+        '<button type="button" onclick="App.toggleAddMember()" class="px-3 py-1.5 bg-[#e7e2db] text-[#434841] font-semibold text-xs rounded-xl hover:bg-[#ede7e0] transition-all cursor-pointer">取消</button></div></form>';
+    }
+
+    html += '<div class="space-y-2">';
+    state.members.forEach(m => {
+      html += '<div class="flex items-center justify-between p-2.5 bg-[#f9f3ec] rounded-xl border border-[#ede7e0]">';
+      if (s.editingId === m.id) {
+        html += '<div class="flex items-center gap-2 w-full">' +
+          '<div class="w-4 h-4 rounded-full flex-shrink-0" style="background-color:' + esc(s.editingColor) + '"></div>' +
+          '<input id="member-edit-name" type="text" value="' + esc(s.editingName) + '" oninput="App.setEditName(this.value)" class="flex-1 text-xs bg-white border border-[#ede7e0] rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-[#8ba889]">' +
+          '<div class="flex gap-1">' +
+          '<button onclick="App.saveEditMember(\'' + m.id + '\')" class="p-1 text-green-700 hover:bg-green-100 rounded-lg cursor-pointer" title="儲存">' + ic('check', 'w-4 h-4') + '</button>' +
+          '<button onclick="App.cancelEditMember()" class="p-1 text-gray-500 hover:bg-gray-200 rounded-lg cursor-pointer" title="取消">' + ic('x', 'w-4 h-4') + '</button></div></div>';
+      } else {
+        html += '<div class="flex items-center gap-2.5"><div class="w-3.5 h-3.5 rounded-full flex-shrink-0" style="background-color:' + m.color + '"></div>' +
+          '<span class="text-xs font-semibold text-[#1d1b17]">' + esc(m.name) + '</span></div>' +
+          '<div class="flex items-center gap-1">' +
+          '<button onclick="App.startEditMember(\'' + m.id + '\')" class="p-1 text-[#737971] hover:text-[#1d1b17] hover:bg-[#ede7e0] rounded-lg cursor-pointer" title="編輯名稱與顏色">' + ic('pencil', 'w-3.5 h-3.5') + '</button>';
+        if (state.members.length > 1) {
+          html += '<button onclick="App.deleteMember(\'' + m.id + '\')" class="p-1 text-red-500 hover:bg-red-50 rounded-lg cursor-pointer" title="刪除人員">' + ic('trash-2', 'w-3.5 h-3.5') + '</button>';
+        }
+        html += '</div>';
+      }
+      html += '</div>';
+    });
+    html += '</div></div>';
+
+    // cloud sync (Google Sheet via Apps Script Web API)
+    const connected = !!CONFIG.API_URL;
+    html += '<div class="space-y-2 pt-2 border-t border-[#f3ede6]">' +
+      '<div class="flex items-center justify-between">' +
+      '<label class="text-xs text-[#737971] font-semibold block uppercase flex items-center gap-1.5">' + ic('cloud', 'w-3.5 h-3.5') + '雲端同步 (Google Sheet)</label>' +
+      '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full ' + (connected ? 'bg-[#ccebc8] text-[#07200b]' : 'bg-[#e7e2db] text-[#737971]') + '">' + (connected ? '已連線' : '未連線') + '</span></div>' +
+      '<input id="api-url-input" type="url" value="' + esc(CONFIG.API_URL) + '" placeholder="貼上 Apps Script Web App /exec 網址" ' +
+      'class="w-full bg-[#f9f3ec] text-xs px-3 py-2 rounded-xl border border-[#ede7e0] outline-none focus:ring-2 focus:ring-[#8ba889]">' +
+      '<div class="flex gap-2">' +
+      '<button onclick="App.saveApiUrl()" class="flex-1 py-2 bg-[#4a654a] hover:bg-[#334d34] text-white rounded-xl font-semibold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer">' +
+      ic('link', 'w-3.5 h-3.5') + '<span>儲存並連線</span></button>' +
+      '<button onclick="App.pullNow()" ' + (connected ? '' : 'disabled') + ' class="flex-1 py-2 ' + (connected ? 'bg-[#8ba889]/20 hover:bg-[#8ba889]/30 text-[#243d25]' : 'bg-[#ede7e0] text-[#a7aca3] cursor-not-allowed') + ' rounded-xl font-semibold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer">' +
+      ic('refresh-cw', 'w-3.5 h-3.5') + '<span>從雲端載入</span></button></div>' +
+      (connected ? '<p class="text-[10px] text-[#737971] leading-relaxed">每次記帳/修改都會自動寫回這份 Google Sheet 🐾</p>' : '') +
+      '</div>';
+
+    // actions
+    html += '<div class="space-y-2 pt-2 border-t border-[#f3ede6]">' +
+      '<button onclick="App.exportData()" class="w-full py-2.5 bg-[#8ba889]/20 hover:bg-[#8ba889]/30 text-[#243d25] rounded-xl font-semibold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer">' +
+      ic('download', 'w-4 h-4') + '<span>匯出記帳與分帳數據 (JSON/CSV)</span></button>' +
+      '<button onclick="App.confirmReset()" class="w-full py-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl font-semibold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer">' +
+      ic('refresh-cw', 'w-4 h-4') + '<span>' + (s.resetConfirmed ? '確認恢復初次展示數據？' : '重設為範例初次數據') + '</span></button></div>';
+
+    html += '</div></div>';
+    return html;
+  }
+
+  /* ---------- Transaction detail modal ---------- */
+  function renderItemModal() {
+    if (!state.tv.activeItemId) return '';
+    const item = state.transactions.find(t => t.id === state.tv.activeItemId);
+    if (!item) return '';
+    let html = '<div class="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">' +
+      '<div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-xl border border-[#ede7e0] space-y-4 ' + (animateItem ? 'animate-in fade-in zoom-in duration-150' : '') + '">' +
+      '<div class="flex justify-between items-start"><div>' +
+      '<span class="text-xs text-[#737971]">帳務詳細資訊</span>' +
+      '<h3 class="font-display font-bold text-xl text-[#1d1b17]">' + esc(item.title) + '</h3></div>' +
+      '<button onclick="App.closeItem()" class="text-[#737971] hover:text-[#1d1b17] p-1">' + ic('x', 'w-5 h-5') + '</button></div>' +
+      '<div class="bg-[#f9f3ec] p-4 rounded-2xl space-y-2 text-sm">' +
+      '<div class="flex justify-between"><span class="text-[#737971]">金額</span><span class="font-bold text-lg text-[#4a654a]">$' + formatNumber(item.amount) + '</span></div>' +
+      '<div class="flex justify-between"><span class="text-[#737971]">付款人</span><span class="font-semibold">' + esc(item.payer) + '</span></div>' +
+      '<div class="flex justify-between"><span class="text-[#737971]">分類 / 分攤</span><span class="font-semibold">' + esc(item.category) + ' (' + esc(item.splitType) + ')</span></div>' +
+      '<div class="flex justify-between"><span class="text-[#737971]">日期時間</span><span>' + esc(item.date) + ' ' + esc(item.time || '') + '</span></div>';
+    if (item.note) {
+      html += '<div class="pt-2 border-t border-[#ede7e0]"><span class="text-[#737971] text-xs block">備註</span><p class="text-xs text-[#1d1b17]">' + esc(item.note) + '</p></div>';
+    }
+    html += '</div><div class="flex gap-2 pt-2">' +
+      '<button onclick="App.deleteFromModal(\'' + item.id + '\')" class="flex-1 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl font-semibold text-xs flex items-center justify-center gap-1.5 cursor-pointer">' +
+      ic('trash-2', 'w-4 h-4') + '<span>刪除此紀錄</span></button>' +
+      '<button onclick="App.editFromModal(\'' + item.id + '\')" class="flex-1 py-2.5 bg-[#8ba889] hover:bg-[#4a654a] text-white rounded-xl font-semibold text-xs flex items-center justify-center gap-1.5 cursor-pointer">' +
+      ic('pencil', 'w-4 h-4') + '<span>編輯紀錄</span></button></div></div></div>';
+    return html;
+  }
+
+  /* =========================== RENDER =========================== */
+  /*
+   * Layered rendering: the persistent background ("shell") and the modal
+   * layer are updated independently. Interacting inside a modal only rebuilds
+   * the modal layer, and each modal's entrance animation is played once (via
+   * the animate* flags) instead of replaying on every keystroke/click — this
+   * removes the flashing that a full-page innerHTML rebuild used to cause.
+   */
+  let animateAdd = false, animateSettings = false, animateItem = false, animateMemberForm = false;
+
+  function renderShell() {
+    let view = '';
+    if (state.currentTab === 'settlement') view = renderSettlementView();
+    else if (state.currentTab === 'transactions') view = renderTransactionsView();
+    else if (state.currentTab === 'overview') view = renderOverviewView();
+
+    let html = '';
+    if (state.toastMessage) {
+      html += '<div class="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-[#1d1b17] text-white text-xs font-medium px-4 py-2.5 rounded-full shadow-lg border border-white/20 animate-in fade-in slide-in-from-top duration-200">' + esc(state.toastMessage) + '</div>';
+    }
+    html += renderHeader();
+    html += '<main class="min-h-[calc(100vh-120px)]">' + view + '</main>';
+    html += renderBottomNav();
+    return html;
+  }
+
+  function renderModals() {
+    return renderAddModal() + renderSettingsModal() + renderItemModal();
+  }
+
+  function render(scope) {
+    scope = scope || 'all';
+
+    // capture focus
+    const active = document.activeElement;
+    let fid = null, fs = null, fe = null;
+    if (active && active.id && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+      fid = active.id;
+      try { fs = active.selectionStart; fe = active.selectionEnd; } catch (e) {}
+    }
+
+    if (scope === 'all' || scope === 'shell') {
+      document.getElementById('shell').innerHTML = renderShell();
+    }
+    if (scope === 'all' || scope === 'modals') {
+      document.getElementById('modals').innerHTML = renderModals();
+    }
+
+    if (window.lucide && window.lucide.createIcons) window.lucide.createIcons();
+
+    // entrance animations only play on the render right after opening
+    animateAdd = animateSettings = animateItem = animateMemberForm = false;
+
+    // restore focus
+    if (fid) {
+      const el = document.getElementById(fid);
+      if (el) {
+        el.focus();
+        if (fs != null) { try { el.setSelectionRange(fs, fe); } catch (e) {} }
+      }
+    }
+  }
+
+  /* =========================== HANDLERS =========================== */
+  const App = {
+    selectTab(tab) { state.currentTab = tab; render('shell'); },
+
+    openAdd() {
+      state.editingTransactionId = null;
+      state.form = { type: 'expense', amount: '', title: '', payer: '爸爸', category: '飲食', splitType: '共同', date: '2026-05-24', time: '下午 02:30', note: '', isAdvance: false, owedBy: '' };
+      state.isAddModalOpen = true;
+      animateAdd = true;
+      render('modals');
+    },
+    closeAdd() { state.isAddModalOpen = false; state.editingTransactionId = null; state.form = null; render('modals'); },
+
+    openSettings() { state.isSettingsOpen = true; animateSettings = true; render('modals'); },
+    closeSettings() {
+      state.isSettingsOpen = false;
+      state.settings.resetConfirmed = false;
+      state.settings.isAddingMember = false;
+      state.settings.editingId = null;
+      render('modals');
+    },
+
+    // form field updates
+    updateForm(key, val) { state.form[key] = val; /* no re-render: keep input smooth */ },
+    setFormType(t) { state.form.type = t; render('modals'); },
+    setFormPayer(p) {
+      state.form.payer = p;
+      // an advance payment can't be owed by the person who paid
+      if (state.form.isAdvance && state.form.owedBy === p) {
+        const other = state.members.find(m => m.name !== p);
+        state.form.owedBy = other ? other.name : '';
+      }
+      render('modals');
+    },
+    setFormCategory(c) { state.form.category = c; render('modals'); },
+    setFormSplit(s) { state.form.splitType = s; render('modals'); },
+    toggleAdvance() {
+      state.form.isAdvance = !state.form.isAdvance;
+      if (state.form.isAdvance && (!state.form.owedBy || state.form.owedBy === state.form.payer)) {
+        const other = state.members.find(m => m.name !== state.form.payer);
+        state.form.owedBy = other ? other.name : '';
+      }
+      render('modals');
+    },
+    setOwedBy(name) { state.form.owedBy = name; render('modals'); },
+    applyPreset(i) {
+      const preset = PRESET_CHIPS[i];
+      state.form.title = preset.label.replace(/ [^\s]+$/, '');
+      state.form.category = preset.category;
+      if (!state.form.amount) state.form.amount = String(preset.amount);
+      render('modals');
+    },
+
+    submitForm(e) {
+      e.preventDefault();
+      const f = state.form;
+      const numAmount = parseFloat(f.amount);
+      if (isNaN(numAmount) || numAmount <= 0) return;
+      const item = {
+        title: (f.title || '').trim() || (f.type === 'income' ? '收入項目' : '支出項目'),
+        amount: numAmount,
+        type: f.type,
+        payer: f.payer,
+        category: f.type === 'income' ? '收入' : f.category,
+        splitType: f.type === 'income' ? '收入' : f.splitType,
+        date: f.date,
+        time: f.time,
+        note: f.note,
+        isShared: f.splitType === '共同',
+      };
+      if (state.editingTransactionId) {
+        const id = state.editingTransactionId;
+        state.transactions = state.transactions.map(t => t.id === id ? Object.assign({}, item, { id: id }) : t);
+        persist();
+        state.editingTransactionId = null;
+        state.isAddModalOpen = false; state.form = null;
+        showToast('已更新帳務紀錄 🐾');
+      } else {
+        const newTx = Object.assign({}, item, { id: 't_' + Date.now() });
+        state.transactions = [newTx].concat(state.transactions);
+
+        // 代付：also create a pending payment that shows up in the settlement view
+        let advanceCreated = false;
+        if (f.type === 'expense' && f.isAdvance && f.owedBy && f.owedBy !== f.payer) {
+          const pp = {
+            id: 'p_' + Date.now(),
+            title: f.payer + '代付：' + item.title,
+            description: '應由 ' + f.owedBy + ' 償還',
+            amount: numAmount,
+            paidBy: f.payer,
+            owedBy: f.owedBy,
+            status: 'pending',
+            date: f.date,
+          };
+          state.pendingPayments = [pp].concat(state.pendingPayments);
+          advanceCreated = true;
+        }
+
+        persist();
+        state.isAddModalOpen = false; state.form = null;
+        showToast(advanceCreated ? '已新增帳務並建立代付款項 🐾' : '已新增一筆帳務紀錄 🐾');
+      }
+    },
+
+    // settlement
+    setPeriod(p) { state.sv.period = p; render('shell'); },
+    setMemberFilter(m) { state.sv.memberFilter = m; render('shell'); },
+    fetchAdvice() {
+      state.sv.isLoadingAdvice = true; render('shell');
+      setTimeout(() => {
+        state.sv.catAdvice = CAT_ADVICE_POOL[Math.floor(Math.random() * CAT_ADVICE_POOL.length)];
+        state.sv.isLoadingAdvice = false; render('shell');
+      }, 900);
+    },
+    settlePending(id) {
+      const target = state.pendingPayments.find(p => p.id === id);
+      if (!target) return;
+      state.pendingPayments = state.pendingPayments.map(p => p.id === id ? Object.assign({}, p, { status: 'settled' }) : p);
+      const settledTx = {
+        id: 't_settle_' + Date.now(),
+        title: '代墊款已結清：' + target.title,
+        amount: target.amount, type: 'expense', payer: target.owedBy,
+        category: '其他', splitType: '個人',
+        date: new Date().toISOString().split('T')[0], time: '剛才',
+        note: '由 ' + target.owedBy + ' 支付給 ' + target.paidBy, isShared: false,
+      };
+      state.transactions = [settledTx].concat(state.transactions);
+      persist();
+      showToast('🎉 已成功結清代付款項 $' + target.amount + '！');
+    },
+
+    // transactions view
+    setSearch(v) { state.tv.searchQuery = v; render('shell'); },
+    setCategory(c) { state.tv.selectedCategory = c; render('shell'); },
+    openItem(id) { state.tv.activeItemId = id; animateItem = true; render('modals'); },
+    closeItem() { state.tv.activeItemId = null; render('modals'); },
+    deleteFromModal(id) {
+      state.transactions = state.transactions.filter(t => t.id !== id);
+      persist();
+      state.tv.activeItemId = null;
+      showToast('已刪除帳務紀錄 🐾');
+    },
+    editFromModal(id) {
+      const tx = state.transactions.find(t => t.id === id);
+      if (!tx) return;
+      state.tv.activeItemId = null;
+      state.editingTransactionId = tx.id;
+      state.form = {
+        type: tx.type, amount: String(tx.amount), title: tx.title, payer: tx.payer,
+        category: tx.category, splitType: tx.splitType, date: tx.date, time: tx.time || '', note: tx.note || '',
+        isAdvance: false, owedBy: '',
+      };
+      state.isAddModalOpen = true;
+      animateAdd = true;
+      render('modals');
+    },
+
+    // settings — members
+    toggleAddMember() {
+      state.settings.isAddingMember = !state.settings.isAddingMember;
+      if (!state.settings.isAddingMember) state.settings.newMemberName = '';
+      else animateMemberForm = true;
+      render('modals');
+    },
+    setNewMemberName(v) { state.settings.newMemberName = v; },
+    setNewMemberColor(c) { state.settings.newMemberColor = c; render('modals'); },
+    addMember(e) {
+      e.preventDefault();
+      const name = state.settings.newMemberName.trim();
+      if (!name) return;
+      const newMember = { id: 'm_' + Date.now(), name: name, color: state.settings.newMemberColor };
+      state.members = state.members.concat([newMember]);
+      persist();
+      state.settings.newMemberName = '';
+      state.settings.isAddingMember = false;
+      showToast('🎉 已成功新增家庭成員：' + name + '！');
+    },
+    startEditMember(id) {
+      const m = state.members.find(x => x.id === id);
+      if (!m) return;
+      state.settings.editingId = m.id;
+      state.settings.editingName = m.name;
+      state.settings.editingColor = m.color;
+      render('modals');
+    },
+    setEditName(v) { state.settings.editingName = v; },
+    cancelEditMember() { state.settings.editingId = null; render('modals'); },
+    saveEditMember(id) {
+      const name = state.settings.editingName.trim();
+      if (!name) return;
+      state.members = state.members.map(m => m.id === id ? Object.assign({}, m, { name: name, color: state.settings.editingColor }) : m);
+      persist();
+      state.settings.editingId = null;
+      showToast('已更新成員資訊 🐾');
+    },
+    deleteMember(id) {
+      const target = state.members.find(m => m.id === id);
+      state.members = state.members.filter(m => m.id !== id);
+      persist();
+      if (target) showToast('已移除成員：' + target.name);
+      else render('all');
+    },
+
+    // settings — data
+    confirmReset() {
+      if (state.settings.resetConfirmed) {
+        state.transactions = JSON.parse(JSON.stringify(INITIAL_TRANSACTIONS));
+        state.pendingPayments = JSON.parse(JSON.stringify(INITIAL_PENDING_PAYMENTS));
+        state.members = JSON.parse(JSON.stringify(INITIAL_MEMBERS));
+        localStorage.removeItem('household_transactions_v1');
+        localStorage.removeItem('household_pending_v1');
+        localStorage.removeItem('household_members_v1');
+        state.settings.resetConfirmed = false;
+        state.isSettingsOpen = false;
+        showToast('已重設為初次範例資料 🐾');
+      } else {
+        state.settings.resetConfirmed = true;
+        render('modals');
+      }
+    },
+    exportData() {
+      const dataStr = JSON.stringify({ transactions: state.transactions, pendingPayments: state.pendingPayments, members: state.members }, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = '家計簿數據_' + new Date().toISOString().split('T')[0] + '.json';
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('已下載備份 JSON 檔案 🐾');
+    },
+
+    // cloud sync
+    saveApiUrl() {
+      const el = document.getElementById('api-url-input');
+      const url = (el ? el.value : '').trim();
+      CONFIG.API_URL = url;
+      if (url) localStorage.setItem('household_api_url', url);
+      else localStorage.removeItem('household_api_url');
+      if (url) {
+        showToast('已連線，正在載入雲端資料…');
+        // the Google Sheet is the source of truth on connect: pull it down
+        syncPull({ toast: true });
+      } else {
+        showToast('已中斷雲端連線（改用本機資料）');
+      }
+    },
+    pullNow() {
+      if (!CONFIG.API_URL) return;
+      showToast('正在從雲端載入…');
+      syncPull({ toast: true });
+    },
+  };
+
+  window.App = App;
+
+  // Add-to-Home-Screen: inject an icon + web manifest built from the cat avatar
+  function installPwaMeta() {
+    try {
+      var apple = document.createElement('link');
+      apple.rel = 'apple-touch-icon';
+      apple.href = CAT_AVATAR;
+      document.head.appendChild(apple);
+
+      var manifest = {
+        name: '家計簿',
+        short_name: '家計簿',
+        description: '費用結算與帳務明細',
+        start_url: '.',
+        scope: '.',
+        display: 'standalone',
+        background_color: '#fef8f1',
+        theme_color: '#4a654a',
+        icons: [
+          { src: CAT_AVATAR, sizes: '128x128', type: 'image/jpeg', purpose: 'any' },
+        ],
+      };
+      var blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+      var link = document.createElement('link');
+      link.rel = 'manifest';
+      link.href = URL.createObjectURL(blob);
+      document.head.appendChild(link);
+    } catch (e) { console.error('installPwaMeta failed', e); }
+  }
+
+  function boot() {
+    if (!window.lucide) { setTimeout(boot, 30); return; }
+    installPwaMeta();
+    document.getElementById('root').innerHTML =
+      '<div class="min-h-screen bg-[#fef8f1] text-[#1d1b17] font-sans antialiased selection:bg-[#8ba889]/30">' +
+        '<div id="shell"></div><div id="modals"></div>' +
+      '</div>';
+    render('all');
+    // if a cloud API URL is configured, refresh from the Google Sheet
+    if (CONFIG.API_URL) syncPull();
+  }
+  boot();
+  </script>
+</body>
+</html>
