@@ -205,6 +205,66 @@
   }
   function ic(name, cls) { return '<i data-lucide="' + name + '" class="' + (cls || '') + '"></i>'; }
 
+  // Current system date -> 'YYYY-MM-DD' (local timezone, not UTC)
+  function todayStr() {
+    const d = new Date();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return d.getFullYear() + '-' + m + '-' + day;
+  }
+
+  // Current system time -> '上午 08:15' / '下午 02:30' (matches the app's style)
+  function nowTimeStr() {
+    const d = new Date();
+    const h = d.getHours();
+    const min = String(d.getMinutes()).padStart(2, '0');
+    const ampm = h < 12 ? '上午' : '下午';
+    let h12 = h % 12;
+    if (h12 === 0) h12 = 12;
+    return ampm + ' ' + String(h12).padStart(2, '0') + ':' + min;
+  }
+
+  // 'YYYY-MM-DD' -> local Date at 00:00 (null if unparseable)
+  function parseDate(s) {
+    if (!s) return null;
+    const m = String(s).match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (!m) return null;
+    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 0, 0, 0, 0);
+  }
+
+  // current calendar week (Mon 00:00 – Sun 23:59)
+  function weekRange() {
+    const now = new Date(); now.setHours(0, 0, 0, 0);
+    const dow = (now.getDay() + 6) % 7; // 0 = Monday
+    const start = new Date(now); start.setDate(now.getDate() - dow);
+    const end = new Date(start); end.setDate(start.getDate() + 6); end.setHours(23, 59, 59, 999);
+    return [start, end];
+  }
+
+  // current calendar month
+  function monthRange() {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    return [start, end];
+  }
+
+  // does a transaction's date fall within the selected period?
+  function inPeriod(dateStr, period, sv) {
+    const d = parseDate(dateStr);
+    if (!d) return true;
+    if (period === '本週') { const r = weekRange(); return d >= r[0] && d <= r[1]; }
+    if (period === '本月') { const r = monthRange(); return d >= r[0] && d <= r[1]; }
+    if (period === '自訂範圍') {
+      const s = parseDate(sv.customStart);
+      const e = parseDate(sv.customEnd);
+      if (s && d < s) return false;
+      if (e) { const eod = new Date(e); eod.setHours(23, 59, 59, 999); if (d > eod) return false; }
+      return true;
+    }
+    return true;
+  }
+
   /* =========================== STATE =========================== */
   function load(key, fallback) {
     const saved = localStorage.getItem(key);
@@ -222,7 +282,7 @@
     editingTransactionId: null,
     toastMessage: null,
     // settlement view
-    sv: { period: '本週', memberFilter: '所有人', catAdvice: '本週的外食支出比上週減少了 12% 喵！繼續保持，目標是省下夏日旅行的基金。', isLoadingAdvice: false },
+    sv: { period: '本週', memberFilter: '所有人', customStart: '', customEnd: '', catAdvice: '本週的外食支出比上週減少了 12% 喵！繼續保持，目標是省下夏日旅行的基金。', isLoadingAdvice: false },
     // transactions view
     tv: { searchQuery: '', selectedCategory: '全部', activeItemId: null },
     // add/edit form
@@ -347,8 +407,10 @@
   /* ---------- Settlement View ---------- */
   function renderSettlementView() {
     const sv = state.sv;
-    const summary = calculateSharedSummary(state.transactions, sv.period, sv.memberFilter, state.members);
-    const sharedTransactions = state.transactions
+    // filter by the selected period first, then compute everything from that slice
+    const periodTx = state.transactions.filter(t => inPeriod(t.date, sv.period, sv));
+    const summary = calculateSharedSummary(periodTx, sv.period, sv.memberFilter, state.members);
+    const sharedTransactions = periodTx
       .filter(t => t.type === 'expense' && (t.isShared || t.splitType === '共同')).slice(0, 5);
     const activePending = state.pendingPayments.filter(p => p.status === 'pending');
 
@@ -362,6 +424,18 @@
         (active ? 'bg-[#8ba889] text-[#243d25] shadow-xs' : 'bg-[#e7e2db] text-[#434841] hover:bg-[#ede7e0]') + '">' + p + '</button>';
     });
     html += '</div>';
+
+    // custom date range picker
+    if (sv.period === '自訂範圍') {
+      html += '<div class="bg-[#f9f3ec] rounded-2xl p-3 shadow-xs border border-[#ede7e0] flex items-end gap-2 animate-in fade-in duration-150">' +
+        '<div class="flex-1"><label class="text-[11px] text-[#737971] font-medium block mb-1">起始日</label>' +
+        '<input id="range-start" type="date" value="' + esc(sv.customStart) + '" onchange="App.setCustomStart(this.value)" class="w-full bg-white rounded-xl px-2.5 py-2 text-xs text-[#1d1b17] border border-[#ede7e0] outline-none focus:ring-2 focus:ring-[#8ba889]"></div>' +
+        '<span class="pb-2 text-[#737971] text-xs">→</span>' +
+        '<div class="flex-1"><label class="text-[11px] text-[#737971] font-medium block mb-1">結束日</label>' +
+        '<input id="range-end" type="date" value="' + esc(sv.customEnd) + '" onchange="App.setCustomEnd(this.value)" class="w-full bg-white rounded-xl px-2.5 py-2 text-xs text-[#1d1b17] border border-[#ede7e0] outline-none focus:ring-2 focus:ring-[#8ba889]"></div>' +
+        ((sv.customStart || sv.customEnd) ? '<button onclick="App.clearCustomRange()" class="pb-1.5 text-[#737971] hover:text-[#1d1b17]" title="清除範圍">' + ic('x', 'w-4 h-4') + '</button>' : '') +
+        '</div>';
+    }
 
     html += '<div class="bg-[#f9f3ec] rounded-2xl p-2.5 flex items-center gap-2 shadow-xs border border-[#ede7e0] overflow-x-auto no-scrollbar">' +
       ic('filter', 'w-4 h-4 text-[#737971] ml-1 flex-shrink-0') + '<div class="flex gap-1.5">';
@@ -707,7 +781,7 @@
       '<div><label class="text-xs text-[#737971] font-medium block mb-1">日期</label>' +
       '<input id="add-date" type="date" value="' + esc(f.date) + '" oninput="App.updateForm(\'date\', this.value)" class="w-full bg-[#f9f3ec] rounded-xl px-3 py-2 text-xs text-[#1d1b17] border border-[#ede7e0] outline-none"></div>' +
       '<div><label class="text-xs text-[#737971] font-medium block mb-1">時間 / 備註</label>' +
-      '<input id="add-note" type="text" value="' + esc(f.note) + '" oninput="App.updateForm(\'note\', this.value)" placeholder="例如：下午 02:30" class="w-full bg-[#f9f3ec] rounded-xl px-3 py-2 text-xs text-[#1d1b17] border border-[#ede7e0] outline-none"></div></div>';
+      '<input id="add-time" type="text" value="' + esc(f.time) + '" oninput="App.updateForm(\'time\', this.value)" placeholder="例如：上午 10:00" class="w-full bg-[#f9f3ec] rounded-xl px-3 py-2 text-xs text-[#1d1b17] border border-[#ede7e0] outline-none"></div></div>';
 
     html += '<button type="submit" class="w-full py-3 bg-[#4a654a] hover:bg-[#334d34] text-white font-bold rounded-2xl text-sm transition-all active:scale-95 shadow-md flex items-center justify-center gap-2 cursor-pointer pt-3">' +
       ic('check', 'w-5 h-5') + '<span>儲存紀錄</span></button>';
@@ -901,7 +975,7 @@
 
     openAdd() {
       state.editingTransactionId = null;
-      state.form = { type: 'expense', amount: '', title: '', payer: '爸爸', category: '飲食', splitType: '共同', date: '2026-05-24', time: '下午 02:30', note: '', isAdvance: false, owedBy: '' };
+      state.form = { type: 'expense', amount: '', title: '', payer: '爸爸', category: '飲食', splitType: '共同', date: todayStr(), time: nowTimeStr(), note: '', isAdvance: false, owedBy: '' };
       state.isAddModalOpen = true;
       animateAdd = true;
       render('modals');
@@ -1002,6 +1076,9 @@
     // settlement
     setPeriod(p) { state.sv.period = p; render('shell'); },
     setMemberFilter(m) { state.sv.memberFilter = m; render('shell'); },
+    setCustomStart(v) { state.sv.customStart = v; render('shell'); },
+    setCustomEnd(v) { state.sv.customEnd = v; render('shell'); },
+    clearCustomRange() { state.sv.customStart = ''; state.sv.customEnd = ''; render('shell'); },
     fetchAdvice() {
       state.sv.isLoadingAdvice = true; render('shell');
       setTimeout(() => {
